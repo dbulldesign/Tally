@@ -1,8 +1,13 @@
-/* Tally service worker — offline app shell */
-const CACHE = 'tally-v1';
+/* Tally service worker — offline app shell with controlled updates.
+   Cache name comes from the ?v= version passed at registration, so bumping
+   APP_VERSION in the app installs a new worker and a new cache. The new
+   worker WAITS; the page shows an "update ready" banner and, on reload,
+   messages SKIP_WAITING so this worker activates and clears old caches. */
+const VERSION = (new URL(self.location)).searchParams.get('v') || 'dev';
+const CACHE = 'tally-' + VERSION;
 
 self.addEventListener('install', e => {
-  self.skipWaiting();
+  // Pre-cache the fresh shell into this version's cache (do NOT skipWaiting).
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html']).catch(() => {})));
 });
 
@@ -14,19 +19,24 @@ self.addEventListener('activate', e => {
   );
 });
 
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  // Navigations: network-first (fresh when online), fall back to cached shell when offline.
+  // Navigations: cache-first (instant + offline). Fresh copy arrives via the update flow.
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
-        .then(res => { const cp = res.clone(); caches.open(CACHE).then(c => c.put('./index.html', cp)); return res; })
-        .catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
+      caches.match('./index.html').then(hit =>
+        hit || fetch(req).then(res => { const cp = res.clone(); caches.open(CACHE).then(c => c.put('./index.html', cp)); return res; })
+                        .catch(() => caches.match('./'))
+      )
     );
     return;
   }
-  // Everything else: cache-first, then network (and cache it).
+  // Other GETs: cache-first, then network (and cache it).
   e.respondWith(
     caches.match(req).then(hit =>
       hit || fetch(req).then(res => {
