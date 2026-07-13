@@ -67,6 +67,7 @@
   .exprbox{min-width:0;position:relative;}
   .expr{border:0;background:transparent;font-family:var(--mono);font-size:14.5px;color:var(--ink);line-height:1.35;padding:8px 2px;width:100%;outline:none;letter-spacing:-.01em;resize:none;overflow:hidden;display:block;min-height:20px;}
   .expr::placeholder{color:var(--muted);opacity:.5;}
+  .cmt-slot{display:block;padding-bottom:4px;}
   .cmt{display:inline-block;font-family:var(--sans);font-size:10.5px;color:var(--amber);background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:5px;padding:1px 5px;margin:2px 0 2px 4px;vertical-align:middle;}
   .result{font-family:var(--mono);text-align:right;padding:8px 2px 6px;min-width:0;cursor:pointer;border-radius:6px;}
   .result:hover{background:var(--hover);}
@@ -604,7 +605,7 @@ function formatValue(v,fmt,g){
 
 
 /* ---------- state ---------- */
-const APP_VERSION='1.5.0';
+const APP_VERSION='1.5.1';
 let uid=1;
 const $=s=>document.querySelector(s);
 const rowsEl=$('#rows');
@@ -716,7 +717,15 @@ function closeSheet(id){ const s=doc.sheets.find(x=>x.id===id); const has=s&&s.r
 function refreshActive(){ hlLabel=null; $('#title').value=active().title; $('#stock').value=active().stock||''; $('#definc').value=active().defaultInc||''; renderFixtures(); renderTabs(); buildSheet(); computeAll(); }
 
 /* ---------- rows ---------- */
-function autoGrow(ta){ ta.style.height='auto'; const h=ta.scrollHeight; if(h) ta.style.height=h+'px'; }
+function autoGrow(ta){ if(!ta)return; ta.style.height='auto'; const h=ta.scrollHeight; if(h) ta.style.height=h+'px'; }
+function growAll(){ rowsEl.querySelectorAll('.expr').forEach(autoGrow); }
+/* Re-measure after fonts load and after layout settles — a late-loading mono font
+   re-wraps text and would otherwise leave rows clipped at their first-pass height. */
+function scheduleGrow(){ requestAnimationFrame(()=>{ growAll(); requestAnimationFrame(growAll); }); }
+try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(growAll).catch(()=>{}); }catch(e){}
+window.addEventListener('load',growAll);
+let growT=null; window.addEventListener('resize',()=>{ clearTimeout(growT); growT=setTimeout(growAll,80); });
+try{ if(window.ResizeObserver){ new ResizeObserver(()=>{ clearTimeout(growT); growT=setTimeout(growAll,60); }).observe(rowsEl); } }catch(e){}
 function groupBadge(g){ const d=document.createElement('div'); d.className='group-badge'; d.style.setProperty('--gcol',g.color||''); const sp=document.createElement('span'); sp.textContent=g.name||'Group'; const x=document.createElement('button'); x.innerHTML='&times;'; x.title='Ungroup'; x.addEventListener('click',()=>ungroup(g.id)); d.append(sp,x); return d; }
 function buildSheet(){ rowsEl.innerHTML=''; let hide=false, prevGroup='__none__';
   $('.sheet').classList.toggle('selecting',groupMode);
@@ -730,7 +739,7 @@ function buildSheet(){ rowsEl.innerHTML=''; let hide=false, prevGroup='__none__'
     if(selSet.has(String(r.id))) el.classList.add('selected');
     rowsEl.appendChild(el);
   }
-  rowsEl.querySelectorAll('.expr').forEach(autoGrow); $('#print-title').textContent=active().title;
+  growAll(); scheduleGrow(); $('#print-title').textContent=active().title;
 }
 function dragHandle(r){ const h=document.createElement('div'); h.className='drag'; h.innerHTML='&#8942;&#8942;'; h.title='Drag to reorder';
   h.addEventListener('pointerdown',e=>onDragStart(e,r)); return h; }
