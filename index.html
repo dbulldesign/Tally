@@ -610,7 +610,7 @@ function formatValue(v,fmt,g){
 
 
 /* ---------- state ---------- */
-const APP_VERSION='1.5.2';
+const APP_VERSION='1.5.3';
 let uid=1;
 const $=s=>document.querySelector(s);
 const rowsEl=$('#rows');
@@ -1097,19 +1097,31 @@ let installEvent=null;
 window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); installEvent=e; $('#install').style.display=''; });
 $('#install').addEventListener('click',async()=>{ if(installEvent){ installEvent.prompt(); try{ await installEvent.userChoice; }catch(e){} installEvent=null; $('#install').style.display='none'; } });
 /* true-PWA: service worker + "update available" banner (only on http/https) */
+let swStatus = (typeof location!=='undefined' && !/^https?:$/.test(location.protocol))
+  ? 'Offline caching needs https (running from a file)'
+  : ('serviceWorker' in navigator ? 'Checking…' : 'Not supported in this browser');
+function setSwStatus(s){ swStatus=s; const f=$('#set-foot'); if(f && $('#settings-modal').classList.contains('show')) renderSettingsFoot(); }
+/* Hard reset: unregister every service worker and delete every cache, then reload
+   from the network. This is the escape hatch if a stale cached build ever sticks. */
+async function hardRefresh(){
+  try{ if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); } }catch(e){}
+  try{ if(window.caches){ const keys=await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); } }catch(e){}
+  location.reload(true);
+}
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
   let refreshing=false;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(refreshing)return; refreshing=true; location.reload(); });
   function showUpdateBar(worker){ const bar=$('#update-bar'); if(!bar)return; bar.classList.add('show');
-    $('#update-reload').onclick=()=>{ try{ worker&&worker.postMessage({type:'SKIP_WAITING'}); }catch(e){} bar.classList.remove('show'); setTimeout(()=>{ if(!refreshing){ refreshing=true; location.reload(); } },1500); };
+    $('#update-reload').onclick=()=>{ try{ worker&&worker.postMessage({type:'SKIP_WAITING'}); }catch(e){} bar.classList.remove('show'); setTimeout(()=>{ if(!refreshing){ refreshing=true; location.reload(); } },1200); };
     $('#update-dismiss').onclick=()=>bar.classList.remove('show'); }
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js?v='+APP_VERSION,{updateViaCache:'none'}).then(reg=>{
+      setSwStatus('Offline ready');
       if(reg.waiting && navigator.serviceWorker.controller) showUpdateBar(reg.waiting);
       reg.addEventListener('updatefound',()=>{ const nw=reg.installing; if(!nw)return; nw.addEventListener('statechange',()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller) showUpdateBar(nw); }); });
       setInterval(()=>reg.update().catch(()=>{}), 60*60*1000);
       document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') reg.update().catch(()=>{}); });
-    }).catch(()=>{});
+    }).catch(err=>{ setSwStatus('Offline caching unavailable ('+((err&&err.message)||'sw.js failed to load')+')'); });
   });
 }
 
@@ -1131,7 +1143,15 @@ function buildSettingsUI(){ const box=$('#settings-body'); box.innerHTML=''; SET
     const sw=document.createElement('input'); sw.type='checkbox'; sw.className='sw'; sw.checked=settings[key]!==false; sw.dataset.key=key;
     sw.addEventListener('change',()=>{ settings[key]=sw.checked; applySettings(); setupHints(); save(); });
     row.append(sp,sw); box.appendChild(row); }); }); }
-function openSettings(){ buildSettingsUI(); const f=$('#set-foot'); if(f) f.innerHTML='Tally <b>v'+APP_VERSION+'</b> \u00b7 changes autosave to this browser automatically'+(lastSavedAt?(' \u00b7 last saved '+lastSavedAt.toLocaleTimeString()):''); $('#settings-modal').classList.add('show'); }
+function renderSettingsFoot(){ const f=$('#set-foot'); if(!f)return;
+  f.innerHTML='Tally <b>v'+APP_VERSION+'</b> · autosaves to this browser'+(lastSavedAt?(' · last saved '+lastSavedAt.toLocaleTimeString()):'')
+    +'<br>Offline status: <b>'+esc(swStatus)+'</b>';
+  const btn=document.createElement('button'); btn.className='btn mini'; btn.style.marginTop='8px'; btn.textContent='Force update (clear cached app)';
+  btn.title='Unregisters the service worker, clears the cache, and reloads the newest version. Your saved work is not affected.';
+  btn.addEventListener('click',()=>{ if(confirmSafe('Clear the cached app and reload the latest version?\n\nYour worksheets are stored separately and will NOT be lost.')) hardRefresh(); });
+  f.appendChild(btn);
+}
+function openSettings(){ buildSettingsUI(); renderSettingsFoot(); $('#settings-modal').classList.add('show'); }
 $('#settings-btn').addEventListener('click',openSettings);
 $('#settings-close').addEventListener('click',()=>$('#settings-modal').classList.remove('show'));
 $('#settings-modal').addEventListener('click',e=>{ if(e.target.id==='settings-modal') e.currentTarget.classList.remove('show'); });
