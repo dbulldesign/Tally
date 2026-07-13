@@ -1,66 +1,75 @@
-/* Tally service worker.
+/* Tally service worker — deliberately conservative, plain ES5-style.
+ * No URL/searchParams, no optional chaining, everything guarded.
  *
- * Navigation is NETWORK-FIRST: when you're online you always get the freshly
- * deployed index.html, so a new release can never be "stuck" behind an old cache.
- * The cache is the offline fallback. Other GETs are cache-first for speed.
- *
- * Cache name is derived from the ?v= passed at registration, so bumping
- * APP_VERSION in index.html creates a new cache and drops the old one.
+ * Navigation is NETWORK-FIRST: online you always get the freshly deployed
+ * index.html, so a new release can never get stuck behind an old cache.
+ * Cache is the offline fallback only.
  */
-const VERSION = new URL(self.location).searchParams.get('v') || 'dev';
-const CACHE = 'tally-' + VERSION;
-const SHELL = './index.html';
+var VERSION = (function () {
+  try {
+    var m = String(self.location.search || '').match(/[?&]v=([^&]+)/);
+    return m ? m[1] : 'dev';
+  } catch (e) { return 'dev'; }
+})();
+var CACHE = 'tally-' + VERSION;
+var SHELL = 'index.html';
 
-self.addEventListener('install', e => {
-  // Pre-cache the shell, but never let a failure block installation.
+self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(CACHE)
-      .then(c => c.add(new Request(SHELL, { cache: 'reload' })))
-      .catch(() => {})
+      .then(function (c) { return c.add(SHELL); })
+      .catch(function () { /* never block install */ })
   );
 });
 
-self.addEventListener('activate', e => {
+self.addEventListener('activate', function (e) {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k)))))
-      .then(() => self.clients.claim())
-      .catch(() => {})
+      .then(function (keys) {
+        return Promise.all(keys.map(function (k) {
+          return k === CACHE ? null : caches.delete(k);
+        }));
+      })
+      .then(function () { return self.clients.claim(); })
+      .catch(function () {})
   );
 });
 
-self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+self.addEventListener('message', function (e) {
+  if (e && e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
-self.addEventListener('fetch', e => {
-  const req = e.request;
-  if (req.method !== 'GET') return;
+self.addEventListener('fetch', function (e) {
+  var req = e.request;
+  if (!req || req.method !== 'GET') return;
 
-  // Pages: network first, fall back to the cached shell when offline.
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
-        .then(res => {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(SHELL, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match(SHELL).then(hit => hit || caches.match('./')))
+      fetch(req).then(function (res) {
+        try {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(SHELL, copy); }).catch(function () {});
+        } catch (err) {}
+        return res;
+      }).catch(function () {
+        return caches.match(SHELL).then(function (hit) { return hit || caches.match('./'); });
+      })
     );
     return;
   }
 
-  // Everything else: cache first, then network.
   e.respondWith(
-    caches.match(req).then(hit =>
-      hit || fetch(req).then(res => {
-        if (res && res.status === 200 && res.type === 'basic') {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
-        }
+    caches.match(req).then(function (hit) {
+      if (hit) return hit;
+      return fetch(req).then(function (res) {
+        try {
+          if (res && res.status === 200 && res.type === 'basic') {
+            var copy = res.clone();
+            caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
+          }
+        } catch (err) {}
         return res;
-      }).catch(() => hit)
-    )
+      }).catch(function () { return hit; });
+    })
   );
 });
