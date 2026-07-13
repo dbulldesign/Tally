@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tally — Reset app cache</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       background:#20344b;color:#e8eef6;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:24px;}
+  .card{max-width:460px;background:#2b415c;border:1px solid #3a5a79;border-radius:14px;padding:24px 26px;box-shadow:0 16px 40px rgba(0,0,0,.35);}
+  h1{margin:0 0 6px;font-size:20px;}
+  p{margin:8px 0;color:#b9c7d9;font-size:14.5px;}
+  #log{margin-top:14px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#e9c98a;white-space:pre-wrap;}
+  a.btn{display:inline-block;margin-top:16px;background:#e0a54a;color:#20344b;font-weight:700;text-decoration:none;
+        padding:10px 18px;border-radius:9px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Resetting Tally</h1>
+  <p>Removing the cached app so the newest version loads. Your saved worksheets are stored separately and are <b>not</b> affected.</p>
+  <div id="log">Working…</div>
+  <a class="btn" href="./index.html" id="go">Open Tally</a>
+</div>
+<script>
+(function () {
+  var log = document.getElementById('log');
+  var lines = [];
+  function say(s) { lines.push(s); log.textContent = lines.join('\n'); }
+
+  var jobs = [];
+
+  if ('serviceWorker' in navigator) {
+    jobs.push(
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        if (!regs.length) { say('• no service workers found'); return; }
+        return Promise.all(regs.map(function (r) { return r.unregister(); }))
+          .then(function () { say('• unregistered ' + regs.length + ' service worker(s)'); });
+      }).catch(function () { say('• could not read service workers'); })
+    );
+  } else {
+    say('• service workers not supported here');
+  }
+
+  if (window.caches) {
+    jobs.push(
+      caches.keys().then(function (keys) {
+        if (!keys.length) { say('• no caches found'); return; }
+        return Promise.all(keys.map(function (k) { return caches.delete(k); }))
+          .then(function () { say('• cleared ' + keys.length + ' cache(s)'); });
+      }).catch(function () { say('• could not clear caches'); })
+    );
+  }
+
+  Promise.all(jobs).then(function () {
+    say('\nDone. Opening the latest version…');
+    setTimeout(function () {
+      // cache-busting query so the browser can't reuse an HTTP-cached page
+      location.replace('./index.html?fresh=' + Date.now());
+    }, 1200);
+  });
+})();
+</script>
+</body>
+</html>
