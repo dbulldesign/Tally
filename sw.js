@@ -1,14 +1,23 @@
-/* Tally service worker — offline app shell with controlled updates.
-   Cache name comes from the ?v= version passed at registration, so bumping
-   APP_VERSION in the app installs a new worker and a new cache. The new
-   worker WAITS; the page shows an "update ready" banner and, on reload,
-   messages SKIP_WAITING so this worker activates and clears old caches. */
-const VERSION = (new URL(self.location)).searchParams.get('v') || 'dev';
+/* Tally service worker.
+ *
+ * Navigation is NETWORK-FIRST: when you're online you always get the freshly
+ * deployed index.html, so a new release can never be "stuck" behind an old cache.
+ * The cache is the offline fallback. Other GETs are cache-first for speed.
+ *
+ * Cache name is derived from the ?v= passed at registration, so bumping
+ * APP_VERSION in index.html creates a new cache and drops the old one.
+ */
+const VERSION = new URL(self.location).searchParams.get('v') || 'dev';
 const CACHE = 'tally-' + VERSION;
+const SHELL = './index.html';
 
 self.addEventListener('install', e => {
-  // Pre-cache the fresh shell into this version's cache (do NOT skipWaiting).
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html']).catch(() => {})));
+  // Pre-cache the shell, but never let a failure block installation.
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.add(new Request(SHELL, { cache: 'reload' })))
+      .catch(() => {})
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -16,6 +25,7 @@ self.addEventListener('activate', e => {
     caches.keys()
       .then(keys => Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k)))))
       .then(() => self.clients.claim())
+      .catch(() => {})
   );
 });
 
@@ -26,21 +36,29 @@ self.addEventListener('message', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  // Navigations: cache-first (instant + offline). Fresh copy arrives via the update flow.
+
+  // Pages: network first, fall back to the cached shell when offline.
   if (req.mode === 'navigate') {
     e.respondWith(
-      caches.match('./index.html').then(hit =>
-        hit || fetch(req).then(res => { const cp = res.clone(); caches.open(CACHE).then(c => c.put('./index.html', cp)); return res; })
-                        .catch(() => caches.match('./'))
-      )
+      fetch(req)
+        .then(res => {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(SHELL, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(SHELL).then(hit => hit || caches.match('./')))
     );
     return;
   }
-  // Other GETs: cache-first, then network (and cache it).
+
+  // Everything else: cache first, then network.
   e.respondWith(
     caches.match(req).then(hit =>
       hit || fetch(req).then(res => {
-        if (res && res.status === 200) { const cp = res.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }
+        if (res && res.status === 200 && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        }
         return res;
       }).catch(() => hit)
     )
