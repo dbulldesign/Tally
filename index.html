@@ -610,7 +610,7 @@ function formatValue(v,fmt,g){
 
 
 /* ---------- state ---------- */
-const APP_VERSION='1.5.3';
+const APP_VERSION='1.5.4';
 let uid=1;
 const $=s=>document.querySelector(s);
 const rowsEl=$('#rows');
@@ -1106,8 +1106,10 @@ function setSwStatus(s){ swStatus=s; const f=$('#set-foot'); if(f && $('#setting
 async function hardRefresh(){
   try{ if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); } }catch(e){}
   try{ if(window.caches){ const keys=await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); } }catch(e){}
-  location.reload(true);
+  location.replace(location.pathname+'?fresh='+Date.now());
 }
+/* Visiting ...?reset=1 force-clears a stale cached build without needing DevTools. */
+try{ if(/[?&]reset=1\b/.test(location.search)) hardRefresh(); }catch(e){}
 if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
   let refreshing=false;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(refreshing)return; refreshing=true; location.reload(); });
