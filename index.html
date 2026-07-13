@@ -65,7 +65,12 @@
   .pin{width:26px;height:26px;margin-top:4px;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;border-radius:7px;color:var(--line);}
   .pin:hover{background:var(--hover);color:var(--muted);} .pin.on{color:var(--amber);} .pin svg{width:12px;height:12px;}
   .exprbox{min-width:0;position:relative;}
-  .expr{border:0;background:transparent;font-family:var(--mono);font-size:14.5px;color:var(--ink);line-height:1.35;padding:8px 2px;width:100%;outline:none;letter-spacing:-.01em;resize:none;overflow:hidden;display:block;min-height:20px;}
+  /* CSS-only auto-grow: .grow::after is a hidden replica of the text, so the grid cell
+     is always exactly as tall as the wrapped content — no JS measuring, no clipping. */
+  .grow{display:grid;min-width:0;}
+  .grow > .expr, .grow::after{grid-area:1 / 1 / 2 / 2;font-family:var(--mono);font-size:14.5px;line-height:1.35;padding:8px 2px;letter-spacing:-.01em;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;min-height:20px;border:0;box-sizing:border-box;}
+  .grow::after{content:attr(data-value) " ";visibility:hidden;pointer-events:none;}
+  .expr{background:transparent;color:var(--ink);width:100%;outline:none;resize:none;overflow:hidden;display:block;}
   .expr::placeholder{color:var(--muted);opacity:.5;}
   .cmt-slot{display:block;padding-bottom:4px;}
   .cmt{display:inline-block;font-family:var(--sans);font-size:10.5px;color:var(--amber);background:var(--amber-soft);border:1px solid var(--amber-line);border-radius:5px;padding:1px 5px;margin:2px 0 2px 4px;vertical-align:middle;}
@@ -240,7 +245,7 @@
   .find-item .fi-main{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
   .find-item .fi-meta{font-size:11px;color:var(--muted);}
   body.compact .row{min-height:0;}
-  body.compact .expr{font-size:13px;line-height:1.25;padding:4px 2px;min-height:16px;}
+  body.compact .grow > .expr, body.compact .grow::after{font-size:13px;line-height:1.25;padding:4px 2px;min-height:16px;}
   body.compact .result{padding:4px 2px 3px;}
   body.compact .result .main{font-size:12.5px;}
   body.compact .pin{height:22px;margin-top:2px;}
@@ -310,7 +315,7 @@
   .modal-note{font-size:12px;color:var(--muted);margin:10px 0 0;line-height:1.45;}
   .modal-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
   @media (max-width:760px){ .layout{grid-template-columns:1fr;} aside{position:static;} .total{position:sticky;bottom:0;z-index:5;box-shadow:0 -6px 20px rgba(0,0,0,.12);} }
-  @media (max-width:520px){ .result .sub{display:none;} .expr{font-size:14px;} }
+  @media (max-width:520px){ .result .sub{display:none;} .grow > .expr, .grow::after{font-size:14px;} }
   @media print{ header.top,.tabs,aside,.modal-bg,.drag,.pin,.sep-del,.sep-chev,.result{cursor:auto;} header.top,.tabs,aside,.modal-bg,.drag,.pin,.sep-del,.result .sub,.ac{display:none!important;} .layout{grid-template-columns:1fr;} .card{border:0;} body{background:#fff;} .result .main{color:#000;} .print-title{display:block!important;} }
   .print-title{display:none;font-size:18px;font-weight:700;margin:0 0 10px;}
 </style>
@@ -605,7 +610,7 @@ function formatValue(v,fmt,g){
 
 
 /* ---------- state ---------- */
-const APP_VERSION='1.5.1';
+const APP_VERSION='1.5.2';
 let uid=1;
 const $=s=>document.querySelector(s);
 const rowsEl=$('#rows');
@@ -717,15 +722,13 @@ function closeSheet(id){ const s=doc.sheets.find(x=>x.id===id); const has=s&&s.r
 function refreshActive(){ hlLabel=null; $('#title').value=active().title; $('#stock').value=active().stock||''; $('#definc').value=active().defaultInc||''; renderFixtures(); renderTabs(); buildSheet(); computeAll(); }
 
 /* ---------- rows ---------- */
-function autoGrow(ta){ if(!ta)return; ta.style.height='auto'; const h=ta.scrollHeight; if(h) ta.style.height=h+'px'; }
+/* Line auto-sizing is done in CSS (.grow uses a hidden ::after replica of the text,
+   so the browser lays out the true height itself). JS only keeps the replica in sync —
+   no measuring, so it can't be thrown off by late-loading fonts or width changes,
+   which is what previously left wrapped lines clipped behind their label chips. */
+function autoGrow(ta){ if(!ta) return; const g=ta.parentNode; if(g&&g.classList&&g.classList.contains('grow')) g.dataset.value=ta.value||''; }
 function growAll(){ rowsEl.querySelectorAll('.expr').forEach(autoGrow); }
-/* Re-measure after fonts load and after layout settles — a late-loading mono font
-   re-wraps text and would otherwise leave rows clipped at their first-pass height. */
-function scheduleGrow(){ requestAnimationFrame(()=>{ growAll(); requestAnimationFrame(growAll); }); }
-try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(growAll).catch(()=>{}); }catch(e){}
-window.addEventListener('load',growAll);
-let growT=null; window.addEventListener('resize',()=>{ clearTimeout(growT); growT=setTimeout(growAll,80); });
-try{ if(window.ResizeObserver){ new ResizeObserver(()=>{ clearTimeout(growT); growT=setTimeout(growAll,60); }).observe(rowsEl); } }catch(e){}
+function scheduleGrow(){ growAll(); }
 function groupBadge(g){ const d=document.createElement('div'); d.className='group-badge'; d.style.setProperty('--gcol',g.color||''); const sp=document.createElement('span'); sp.textContent=g.name||'Group'; const x=document.createElement('button'); x.innerHTML='&times;'; x.title='Ungroup'; x.addEventListener('click',()=>ungroup(g.id)); d.append(sp,x); return d; }
 function buildSheet(){ rowsEl.innerHTML=''; let hide=false, prevGroup='__none__';
   $('.sheet').classList.toggle('selecting',groupMode);
@@ -765,6 +768,7 @@ function buildRow(r){
   pin.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>';
   pin.addEventListener('click',()=>{ r.pin=!r.pin; pin.classList.toggle('on',r.pin); markDirty(); computeAll(); record(true); });
   const box=document.createElement('div'); box.className='exprbox';
+  const grow=document.createElement('div'); grow.className='grow'; grow.dataset.value=r.text||'';
   const inp=document.createElement('textarea'); inp.className='expr field'; inp.rows=1; inp.spellcheck=false; inp.autocomplete='off'; inp.wrap='soft';
   inp.value=r.text; inp.placeholder='e.g.  4*12" + 3\' 6"  #Shelf A  @LA';
   inp.addEventListener('input',()=>{ r.text=inp.value; autoGrow(inp); markDirty(); computeAll(); acUpdate(inp,r); });
@@ -772,7 +776,7 @@ function buildRow(r){
   inp.addEventListener('keydown',e=>onKey(e,r,inp));
   inp.addEventListener('blur',()=>setTimeout(acClose,120));
   const cmt=document.createElement('span'); cmt.className='cmt-slot';
-  box.appendChild(inp); box.appendChild(cmt);
+  grow.appendChild(inp); box.appendChild(grow); box.appendChild(cmt);
   const res=document.createElement('div'); res.className='result';
   res.addEventListener('click',()=>{ if(!groupMode) cycleUnit(r); });
   row.append(pin,box,res); return row;
@@ -1100,7 +1104,7 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
     $('#update-reload').onclick=()=>{ try{ worker&&worker.postMessage({type:'SKIP_WAITING'}); }catch(e){} bar.classList.remove('show'); setTimeout(()=>{ if(!refreshing){ refreshing=true; location.reload(); } },1500); };
     $('#update-dismiss').onclick=()=>bar.classList.remove('show'); }
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js?v='+APP_VERSION).then(reg=>{
+    navigator.serviceWorker.register('./sw.js?v='+APP_VERSION,{updateViaCache:'none'}).then(reg=>{
       if(reg.waiting && navigator.serviceWorker.controller) showUpdateBar(reg.waiting);
       reg.addEventListener('updatefound',()=>{ const nw=reg.installing; if(!nw)return; nw.addEventListener('statechange',()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller) showUpdateBar(nw); }); });
       setInterval(()=>reg.update().catch(()=>{}), 60*60*1000);
