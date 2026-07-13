@@ -240,6 +240,7 @@
   body.off-themes #theme-sel{display:none;}
   body.off-status #status{display:none;}
   body.off-map #map-btn{display:none;}
+  body.off-quickCalc #qc-btn{display:none;}
   body.off-search #find-btn{display:none;}
   .find-item{flex-direction:column;align-items:flex-start!important;gap:2px!important;}
   .find-item .fi-main{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
@@ -305,6 +306,32 @@
   .mapdock.side.side-right .dock-edge{left:-2px;}
   .mapdock.side.side-left .dock-edge{right:-2px;}
   body{transition:padding .12s ease;}
+  /* quick calculator */
+  .qc{position:fixed;right:18px;bottom:18px;width:290px;background:var(--panel);border:1px solid var(--line);border-radius:13px;
+      box-shadow:0 16px 42px rgba(0,0,0,.30);display:none;flex-direction:column;z-index:95;overflow:hidden;}
+  .qc.show{display:flex;animation:pop .14s ease;}
+  html[data-theme="glass"] .qc{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+  .qc-head{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;border-bottom:1px solid var(--line);cursor:move;user-select:none;touch-action:none;}
+  .qc-title{flex:1;font-size:12px;font-weight:650;color:var(--ink);letter-spacing:.02em;}
+  .qc-x{border:0;background:transparent;color:var(--muted);font-size:17px;line-height:1;cursor:pointer;border-radius:6px;padding:0 4px;}
+  .qc-x:hover{color:var(--err);background:var(--hover);}
+  .qc-body{padding:11px 12px 12px;}
+  .qc-in{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:15px;color:var(--ink);background:var(--paper);
+         border:1px solid var(--line);border-radius:9px;padding:9px 10px;outline:none;}
+  .qc-in:focus{border-color:var(--amber-line);box-shadow:0 0 0 2px var(--amber-soft);}
+  .qc-out{margin-top:9px;min-height:34px;text-align:right;}
+  .qc-main{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--ink);word-break:break-all;}
+  .qc-main.err{font-size:12px;font-weight:500;color:var(--err);}
+  .qc-sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:1px;}
+  .qc-acts{display:flex;gap:6px;margin-top:10px;}
+  .qc-acts .btn{flex:1;justify-content:center;}
+  .qc-hist{margin-top:10px;border-top:1px solid var(--grid);max-height:150px;overflow:auto;}
+  .qc-item{display:flex;justify-content:space-between;gap:8px;padding:6px 2px;border-bottom:1px solid var(--grid);cursor:pointer;border-radius:6px;}
+  .qc-item:last-child{border-bottom:0;}
+  .qc-item:hover{background:var(--hover);}
+  .qc-e{font-family:var(--mono);font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .qc-v{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--amber);white-space:nowrap;}
+  .qc-empty{padding:8px 2px;font-size:11px;color:var(--muted);text-align:center;}
   @media (prefers-reduced-motion: reduce){ *{animation-duration:.001s!important;transition:none!important;} }
   /* modal */
   .modal-bg{position:fixed;inset:0;background:rgba(12,16,22,.42);display:none;align-items:center;justify-content:center;padding:20px;z-index:60;} .modal-bg.show{display:flex;}
@@ -339,6 +366,7 @@
       <input type="file" id="file" accept=".json,application/json" hidden>
       <button class="btn mini" id="clear">Clear</button>
       <button class="btn mini" id="map-btn" title="Mind map (Alt+M)">Map</button>
+      <button class="btn mini" id="qc-btn" title="Quick calculator (Alt+C)">Calc</button>
       <button class="btn mini" id="install" style="display:none">Install</button>
       <select class="theme-sel" id="theme-sel" title="Theme" aria-label="Theme"><option value="light">Light</option><option value="dark">Dark</option><option value="slate">Slate</option><option value="paper">Paper</option><option value="glass">Glass</option></select>
       <button class="btn icon" id="find-btn" title="Search all tabs (Ctrl/Cmd+F)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
@@ -399,6 +427,7 @@
           <div class="ln"><code>--- Section</code> makes a divider · tap a result to change unit</div>
           <div class="ln"><code>@LA</code> tags a line with a fixture type (its cut increment applies)</div>
           <div class="ln"><code>stock 144"</code> on a --- divider sets that section’s stock</div>
+          <div class="ln"><code>20% off $19</code> · <code>$19 + 8%</code> · <code>20% of 80</code> — percents &amp; money</div>
           <div class="ln"><code>… to m</code> · <code>to feet</code> converts a line</div>
           <div class="ln">Install: use your browser's <b>Add to Home Screen</b> — works offline.</div>
         </div>
@@ -439,6 +468,23 @@
 </div></div>
 
 <div class="update-bar" id="update-bar"><span>A new version of Tally is ready.</span><button class="btn mini" id="update-reload">Reload</button><button class="update-x" id="update-dismiss" title="Dismiss">×</button></div>
+
+<div class="qc" id="quickcalc">
+  <div class="qc-head" id="qc-head">
+    <span class="qc-title">Quick calc</span>
+    <button class="btn mini" id="qc-insert" title="Add this as a new worksheet line">Insert</button>
+    <button class="qc-x" id="qc-close" title="Close (Esc)">×</button>
+  </div>
+  <div class="qc-body">
+    <input class="qc-in" id="qc-in" placeholder='e.g. 20% off $19  or  8*33.79"' spellcheck="false" autocomplete="off">
+    <div class="qc-out"><div class="qc-main" id="qc-main">—</div><div class="qc-sub" id="qc-sub"></div></div>
+    <div class="qc-acts">
+      <button class="btn mini" id="qc-copy">Copy</button>
+      <button class="btn mini" id="qc-clear">Clear</button>
+    </div>
+    <div class="qc-hist" id="qc-hist"></div>
+  </div>
+</div>
 
 <div class="ctxmenu" id="ctxmenu"></div>
 
@@ -503,6 +549,26 @@ function preprocessMath(s){
   s=s.replace(/(\d+(?:\.\d+)?)\s*'\s*(\d+(?:\.\d+)?)(?:\s+(\d+)\s*\/\s*(\d+))?\s*"/g,(m,ft,inch,fn,fd)=>'('+(parseFloat(ft)*12+parseFloat(inch)+(fn?parseFloat(fn)/parseFloat(fd):0))+')"');
   s=s.replace(/(\d+(?:\.\d+)?)\s*(?:ft|feet|foot)\s+(\d+(?:\.\d+)?)(?:\s+(\d+)\s*\/\s*(\d+))?\s*(?:in|inch|inches)\b/gi,(m,ft,inch,fn,fd)=>'('+(parseFloat(ft)*12+parseFloat(inch)+(fn?parseFloat(fn)/parseFloat(fd):0))+')"');
   s=s.replace(/(\d+)\s+(\d+)\s*\/\s*(\d+)/g,'($1+$2/$3)');
+  s=percentPhrases(s);
+  return s;
+}
+/* A "term" a percentage can apply to: $19, 19, 19", (66)", [Price]. */
+const PTERM = String.raw`(\$?\s*(?:\([^()]*\)|\[[^\]]+\]|\d+(?:\.\d+)?)\s*(?:"|'|inches\b|inch\b|in\b|feet\b|foot\b|ft\b|yards\b|yard\b|yd\b|mm\b|cm\b|m\b)?)`;
+const PNUM = String.raw`(\d+(?:\.\d+)?)`;
+function percentPhrases(s){
+  const rx = (body,flags)=>new RegExp(body,flags||'gi');
+  // "20% off $19"  /  "20% less than 80"  ->  B - B*A/100
+  s = s.replace(rx(PNUM+String.raw`\s*%\s*(?:off|less\s+than|below|discount\s+on)\s+`+PTERM),
+    (m,a,b)=>'('+b+' - ('+b+')*'+a+'/100)');
+  // "20% of $19"  ->  B*A/100
+  s = s.replace(rx(PNUM+String.raw`\s*%\s*of\s+`+PTERM),
+    (m,a,b)=>'(('+b+')*'+a+'/100)');
+  // "8% more than 50" / "8% on 50" / "8% added to 50"  ->  B + B*A/100
+  s = s.replace(rx(PNUM+String.raw`\s*%\s*(?:more\s+than|above|on\s+top\s+of|added\s+to|markup\s+on)\s+`+PTERM),
+    (m,a,b)=>'('+b+' + ('+b+')*'+a+'/100)');
+  // "$19 + 8%" (tax) and "96" - 10%" (trim)  ->  B ± B*A/100
+  s = s.replace(rx(PTERM+String.raw`\s*([+\-])\s*`+PNUM+String.raw`\s*%(?!\w)`),
+    (m,b,op,a)=>'('+b+' '+op+' ('+b+')*'+a+'/100)');
   return s;
 }
 function tokenize(s){
@@ -510,6 +576,7 @@ function tokenize(s){
   while(i<s.length){ const c=s[i];
     if(c===' '||c==='\t'){i++;continue;}
     if(isD(c)||(c==='.'&&isD(s[i+1]))){ let j=i+1; while(j<s.length&&(isD(s[j])||s[j]==='.'))j++; t.push({t:'num',v:parseFloat(s.slice(i,j))}); i=j; continue; }
+    if(c==='$'){t.push({t:'cur'});i++;continue;}
     if(c==='"'){t.push({t:'unit',u:'in'});i++;continue;}
     if(c==="'"){t.push({t:'unit',u:'ft'});i++;continue;}
     if(c==='['){ let j=s.indexOf(']',i); if(j<0)j=s.length; t.push({t:'var',name:s.slice(i+1,j)}); i=j+1; continue; }
@@ -530,15 +597,16 @@ function evaluate(str,scope,prev){
   function pExpr(){ let v=pTerm(); while(peek()&&peek().t==='op'&&(peek().v==='+'||peek().v==='-')){const o=next().v; v=addSub(v,pTerm(),o);} return v; }
   function pTerm(){ let v=pPow(); while(peek()&&peek().t==='op'&&(peek().v==='*'||peek().v==='/')){const o=next().v; v=mulDiv(v,pPow(),o);} return v; }
   function pPow(){ let b=pUn(); if(peek()&&peek().t==='op'&&peek().v==='^'){next(); return powV(b,pUn());} return b; }
-  function pUn(){ if(peek()&&peek().t==='op'&&(peek().v==='+'||peek().v==='-')){const o=next().v; const v=pUn(); return o==='-'?{n:-v.n,p:v.p}:v;} return pPost(); }
+  function pUn(){ if(peek()&&peek().t==='op'&&(peek().v==='+'||peek().v==='-')){const o=next().v; const v=pUn(); return o==='-'?{n:-v.n,p:v.p,c:v.c}:v;} return pPost(); }
   function pPost(){ let v=pPrim();
     while(peek()){ const x=peek();
-      if(x.t==='unit'){next(); v=x.u==='in'?{n:v.n,p:v.p+1}:{n:v.n*12,p:v.p+1}; continue;}
-      if(x.t==='word'&&UNITS[x.w]){next(); const U=UNITS[x.w]; v={n:v.n*U.k,p:v.p+U.p}; continue;}
-      if(x.t==='op'&&x.v==='%'){next(); v={n:v.n/100,p:v.p}; continue;}
+      if(x.t==='unit'){next(); v=x.u==='in'?{n:v.n,p:v.p+1,c:v.c}:{n:v.n*12,p:v.p+1,c:v.c}; continue;}
+      if(x.t==='word'&&UNITS[x.w]){next(); const U=UNITS[x.w]; v={n:v.n*U.k,p:v.p+U.p,c:v.c}; continue;}
+      if(x.t==='op'&&x.v==='%'){next(); v={n:v.n/100,p:v.p,c:v.c}; continue;}
       break;
     } return v; }
   function pPrim(){ const x=peek(); if(!x) throw new Error('unexpected end');
+    if(x.t==='cur'){next(); const v=pPrim(); return {n:v.n,p:v.p,c:true};}
     if(x.t==='num'){next(); return {n:x.v,p:0};}
     if(x.t==='op'&&x.v==='('){next(); const v=pExpr(); expect(')'); return v;}
     if(x.t==='var'){next(); return look(x.name);}
@@ -549,15 +617,15 @@ function evaluate(str,scope,prev){
     }
     throw new Error('unexpected token');
   }
-  function addSub(a,b,o){ if(a.p!==b.p) throw new Error("can't add/subtract mixed units"); return {n:o==='+'?a.n+b.n:a.n-b.n,p:a.p}; }
-  function mulDiv(a,b,o){ return o==='*'?{n:a.n*b.n,p:a.p+b.p}:{n:a.n/b.n,p:a.p-b.p}; }
+  function addSub(a,b,o){ if(a.p!==b.p) throw new Error("can't add/subtract mixed units"); return {n:o==='+'?a.n+b.n:a.n-b.n,p:a.p,c:a.c||b.c}; }
+  function mulDiv(a,b,o){ return o==='*'?{n:a.n*b.n,p:a.p+b.p,c:a.c||b.c}:{n:a.n/b.n,p:a.p-b.p,c:a.c||b.c}; }
   function powV(b,e){ if(e.p!==0) throw new Error('exponent must be a number'); if(!Number.isInteger(e.n)){ if(b.p!==0) throw new Error('non-integer power on a unit'); return {n:Math.pow(b.n,e.n),p:0}; } return {n:Math.pow(b.n,e.n),p:b.p*e.n}; }
   function fn(w,a){ switch(w){
     case 'sqrt': if(a[0].p%2) throw new Error('sqrt needs even unit power'); return {n:Math.sqrt(a[0].n),p:a[0].p/2};
-    case 'abs': return {n:Math.abs(a[0].n),p:a[0].p};
-    case 'round': return {n:Math.round(a[0].n),p:a[0].p};
-    case 'floor': return {n:Math.floor(a[0].n),p:a[0].p};
-    case 'ceil': return {n:Math.ceil(a[0].n),p:a[0].p};
+    case 'abs': return {n:Math.abs(a[0].n),p:a[0].p,c:a[0].c};
+    case 'round': return {n:Math.round(a[0].n),p:a[0].p,c:a[0].c};
+    case 'floor': return {n:Math.floor(a[0].n),p:a[0].p,c:a[0].c};
+    case 'ceil': return {n:Math.ceil(a[0].n),p:a[0].p,c:a[0].c};
     case 'min': return a.reduce((m,x)=>x.n<m.n?x:m);
     case 'max': return a.reduce((m,x)=>x.n>m.n?x:m);
   } throw new Error('unknown function'); }
@@ -591,6 +659,9 @@ function parseLine(raw){
   if(asg&&/[A-Za-z]/.test(asg[1])){ assignName=asg[1].replace(/^\[|\]$/g,'').trim(); work=asg[2]; }
   return {math:work.trim(),format,comments,autoLabels,assignName};
 }
+function fmtMoney(x){ const sg=x<0?'-':''; const a=Math.abs(x);
+  return sg+'$'+a.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+}
 function fmtNum(x){ if(!isFinite(x)) return String(x); return (Math.round(x*1e6)/1e6).toFixed(6).replace(/\.?0+$/,''); }
 function decimalFtIn(inch){ const sg=inch<0?'-':''; let a=Math.abs(inch); let ft=Math.floor(a/12); let rem=Math.round((a-ft*12)*100)/100; if(rem>=12){ft++;rem-=12;} return sg+ft+"' "+fmtNum(rem)+'"'; }
 function lengthReps(inch){ return {
@@ -599,6 +670,7 @@ function lengthReps(inch){ return {
 }; }
 const SUBORDER=['ftin','ft','in','m','cm','yd','mm'];
 function formatValue(v,fmt,g){
+  if(v.p===0 && v.c) return {main:fmtMoney(v.n),sub:''};
   if(v.p===0) return {main:fmtNum(v.n),sub:''};
   if(v.p===1){ const reps=lengthReps(v.n); const key=fmt||g; const chosen=reps[key]?key:'ftin';
     const sub=SUBORDER.filter(k=>k!==chosen).slice(0,3).map(k=>reps[k]).join('   ');
@@ -610,7 +682,7 @@ function formatValue(v,fmt,g){
 
 
 /* ---------- state ---------- */
-const APP_VERSION='1.5.4';
+const APP_VERSION='1.6.1';
 let uid=1;
 const $=s=>document.querySelector(s);
 const rowsEl=$('#rows');
@@ -1048,7 +1120,7 @@ $('#print').addEventListener('click',()=>{ window.print(); });
 function downloadText(name,data,mime){ try{ const url=URL.createObjectURL(new Blob([data],{type:mime||'text/plain'})); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},0); }catch(e){ try{ navigator.clipboard.writeText(data); }catch(_){} } }
 
 /* ---------- save / open file ---------- */
-function currentData(){ return {app:'tally',version:4,appVersion:APP_VERSION,savedAt:new Date().toISOString(),gFmt:doc.gFmt,theme:doc.theme,cutMode:doc.cutMode,cutGroup:doc.cutGroup,settings:settings,map:doc.map,sheets:doc.sheets.map(sheetOut)}; }
+function currentData(){ return {app:'tally',version:4,appVersion:APP_VERSION,savedAt:new Date().toISOString(),gFmt:doc.gFmt,theme:doc.theme,cutMode:doc.cutMode,cutGroup:doc.cutGroup,settings:settings,map:doc.map,quick:doc.quick,sheets:doc.sheets.map(sheetOut)}; }
 function slug(s){ return (String(s||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''))||'worksheet'; }
 const canPickLocation=typeof window!=='undefined'&&!!window.showSaveFilePicker;
 function openSaveDialog(){ $('#save-name').value=slug(active().title)+'-'+new Date().toISOString().slice(0,10)+'.json';
@@ -1065,7 +1137,7 @@ function loadData(data){ if(!data) throw new Error('bad'); let sheets;
   else if(Array.isArray(data.rows)){ sheets=[sheetIn({title:data.title,rows:data.rows,stock:data.stock,defaultInc:data.defaultInc,fixtures:data.fixtures})]; }
   else throw new Error('not a Tally file');
   sheets.forEach(s=>{ if(!s.rows.length) s.rows=[mkRow()]; });
-  doc.sheets=sheets; doc.activeId=sheets[0].id; doc.gFmt=data.gFmt||'auto'; doc.theme=data.theme||doc.theme; doc.cutMode=data.cutMode||'ceil'; doc.cutGroup=data.cutGroup||'combined'; settings=Object.assign({},DEFAULT_SETTINGS,data.settings||{}); doc.map=data.map&&Array.isArray(data.map.nodes)?data.map:{nodes:[],edges:[]}; bumpUidForMap();
+  doc.sheets=sheets; doc.activeId=sheets[0].id; doc.gFmt=data.gFmt||'auto'; doc.theme=data.theme||doc.theme; doc.cutMode=data.cutMode||'ceil'; doc.cutGroup=data.cutGroup||'combined'; settings=Object.assign({},DEFAULT_SETTINGS,data.settings||{}); doc.map=data.map&&Array.isArray(data.map.nodes)?data.map:{nodes:[],edges:[]}; doc.quick=data.quick&&Array.isArray(data.quick.hist)?data.quick:{hist:[],pos:null}; bumpUidForMap();
   syncFmtButtons(); syncCutButtons(); applyTheme(); applySettings(); refreshActive(); resetHistory(); clearDirty();
 }
 $('#save').addEventListener('click',openSaveDialog);
@@ -1081,7 +1153,7 @@ $('#file').addEventListener('change',e=>{ const f=e.target.files&&e.target.files
 /* ---------- autosave + dirty ---------- */
 let saveTimer=null, fileDirty=false, lastSavedAt=null;
 function setStatus(txt,saving){ $('#status-t').textContent=txt; $('#status').classList.toggle('saving',!!saving); }
-function currentDocState(){ return {sheets:doc.sheets.map(sheetOut),activeIndex:doc.sheets.findIndex(s=>s.id===doc.activeId),gFmt:doc.gFmt,theme:doc.theme,cutMode:doc.cutMode,cutGroup:doc.cutGroup,settings:settings,map:doc.map,appVersion:APP_VERSION}; }
+function currentDocState(){ return {sheets:doc.sheets.map(sheetOut),activeIndex:doc.sheets.findIndex(s=>s.id===doc.activeId),gFmt:doc.gFmt,theme:doc.theme,cutMode:doc.cutMode,cutGroup:doc.cutGroup,settings:settings,map:doc.map,quick:doc.quick,appVersion:APP_VERSION}; }
 function save(){ clearTimeout(saveTimer); setStatus('Saving\u2026',true); saveTimer=setTimeout(async()=>{ await Store.save({doc:currentDocState()}); lastSavedAt=new Date(); setStatus('Saved',false); const st=$('#status'); if(st) st.title='Autosaved to this browser \u00b7 '+lastSavedAt.toLocaleTimeString(); },350); }
 function markDirty(){ fileDirty=true; $('#save').classList.add('dirty'); }
 function clearDirty(){ fileDirty=false; $('#save').classList.remove('dirty'); }
@@ -1129,15 +1201,15 @@ if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
 
 
 /* ---------- settings / shortcuts / palette / context menu ---------- */
-const DEFAULT_SETTINGS={labels:true,fixtures:true,cutPlan:true,help:true,cutOptions:true,units:true,sections:true,grouping:true,reorder:true,total:true,autocomplete:true,tabs:true,undo:true,saveOpen:true,csv:true,print:true,copy:true,install:true,themes:true,status:true,contextMenu:true,shortcuts:true,map:true,search:true,compact:false};
-const BASIC={labels:false,fixtures:false,cutPlan:false,help:false,cutOptions:false,units:false,sections:false,grouping:false,reorder:false,total:true,autocomplete:false,tabs:false,undo:true,saveOpen:false,csv:false,print:false,copy:true,install:false,themes:true,status:false,contextMenu:true,shortcuts:true,map:true,search:true,compact:false};
+const DEFAULT_SETTINGS={labels:true,fixtures:true,cutPlan:true,help:true,cutOptions:true,units:true,sections:true,grouping:true,reorder:true,total:true,autocomplete:true,tabs:true,undo:true,saveOpen:true,csv:true,print:true,copy:true,install:true,themes:true,status:true,contextMenu:true,shortcuts:true,map:true,search:true,compact:false,quickCalc:true};
+const BASIC={labels:false,fixtures:false,cutPlan:false,help:false,cutOptions:false,units:false,sections:false,grouping:false,reorder:false,total:true,autocomplete:false,tabs:false,undo:true,saveOpen:false,csv:false,print:false,copy:true,install:false,themes:true,status:false,contextMenu:true,shortcuts:true,map:true,search:true,compact:false,quickCalc:true};
 let settings=Object.assign({},DEFAULT_SETTINGS);
 const SETTINGS_DEFS=[
  {g:'Panels',items:[['labels','Labels panel'],['fixtures','Fixture types'],['cutPlan','Cut plan'],['help','How-to help']]},
  {g:'Line features',items:[['cutOptions','Cut options (ideal / \u00b11)'],['units','Unit controls & tap-to-convert'],['sections','Sections / dividers'],['grouping','Grouping'],['reorder','Drag to reorder'],['autocomplete','Autocomplete popup'],['total','Running total']]},
  {g:'Documents',items:[['tabs','Multiple tabs'],['undo','Undo / redo']]},
  {g:'File & export',items:[['saveOpen','Save / Open file'],['csv','CSV export'],['print','Print / PDF'],['copy','Copy'],['install','Install app']]},
- {g:'Interface',items:[['themes','Theme picker'],['status','Autosave status'],['contextMenu','Right-click menu'],['shortcuts','Keyboard shortcuts'],['map','Mind map'],['search','Search all tabs'],['compact','Compact rows']]},
+ {g:'Interface',items:[['themes','Theme picker'],['status','Autosave status'],['contextMenu','Right-click menu'],['shortcuts','Keyboard shortcuts'],['map','Mind map'],['search','Search all tabs'],['compact','Compact rows'],['quickCalc','Quick calculator']]},
 ];
 function applySettings(){ const b=document.body; Object.keys(DEFAULT_SETTINGS).forEach(k=>b.classList.toggle('off-'+k, settings[k]===false)); b.classList.toggle('compact', settings.compact===true); if(settings.grouping===false && groupMode) toggleGroupMode(false); }
 function buildSettingsUI(){ const box=$('#settings-body'); box.innerHTML=''; SETTINGS_DEFS.forEach(grp=>{ const h=document.createElement('div'); h.className='set-grp'; h.textContent=grp.g; box.appendChild(h);
@@ -1202,6 +1274,7 @@ const ACTIONS=[
  {id:'find',label:'Search all tabs',combo:'mod+f',run:openFind,feat:'search',sel:'#find-btn'},
  {id:'compact',label:'Toggle compact rows',combo:'alt+shift+k',run:()=>{ settings.compact=!settings.compact; applySettings(); if($('#settings-modal').classList.contains('show')) buildSettingsUI(); save(); }},
  {id:'map',label:'Open / close mind map',combo:'alt+m',run:openMap,feat:'map',sel:'#map-btn'},
+ {id:'quickcalc',label:'Quick calculator',combo:'alt+c',run:toggleQC,feat:'quickCalc',sel:'#qc-btn'},
  {id:'mapdock',label:'Map pop-out panel',combo:'alt+shift+p',run:openMapDock,feat:'map'},
  {id:'mapadd',label:'Add current line to map',combo:'alt+shift+m',run:()=>{const r=rowById(curRow); if(r) addRowToMap(r);},feat:'map'},
 ];
@@ -1295,6 +1368,7 @@ function rowMenu(r){ const K=comboLabel; const items=[
 }
 function generalMenu(){ const K=comboLabel; const items=[{label:'New line',run:()=>{ const rs=active().rows; const nr=mkRow(); rs.push(nr); markDirty(); buildSheet(); computeAll(); focusRow(nr.id,'start'); }}];
   if(settings.tabs) items.push({label:'New tab',keys:K('alt+n'),run:addSheet});
+  if(settings.quickCalc) items.push({label:'Quick calculator',keys:K('alt+c'),run:toggleQC});
   items.push({sep:true},{label:'Settings\u2026',keys:K('mod+,'),run:openSettings});
   if(settings.shortcuts) items.push({label:'Keyboard shortcuts\u2026',keys:'?',run:openCheat});
   return items;
@@ -1495,6 +1569,58 @@ $('#dock-arrange').addEventListener('click',autoLayout);
 document.addEventListener('keydown',e=>{ if(!mapOpen) return; const editing=/^(INPUT|TEXTAREA)$/.test(e.target&&e.target.tagName||'')||(e.target&&e.target.isContentEditable);
   if(e.key==='Escape'){ if(mapMode==='full') closeMap(); return; }
   if((e.key==='Delete'||e.key==='Backspace')&&!editing&&mapSel){ e.preventDefault(); deleteSelection(); } });
+
+
+/* ---------- quick calculator (scratch pad, uses the same engine + your labels) ---------- */
+let qcOpen=false, qcValue=null;
+function qcEnsure(){ if(!doc.quick) doc.quick={hist:[],pos:null}; if(!Array.isArray(doc.quick.hist)) doc.quick.hist=[]; return doc.quick; }
+function toggleQC(){ if(settings.quickCalc===false) return; qcOpen?closeQC():openQC(); }
+function openQC(){ qcEnsure(); qcOpen=true; const p=$('#quickcalc'); p.classList.add('show');
+  if(doc.quick.pos){ p.style.left=doc.quick.pos.x+'px'; p.style.top=doc.quick.pos.y+'px'; p.style.right='auto'; p.style.bottom='auto'; }
+  qcRender(); qcEval(); setTimeout(()=>{ const i=$('#qc-in'); i.focus(); i.select(); },0); }
+function closeQC(){ qcOpen=false; $('#quickcalc').classList.remove('show'); }
+function qcEval(){ const src=$('#qc-in').value.trim(); const main=$('#qc-main'), sub=$('#qc-sub');
+  qcValue=null; main.classList.remove('err');
+  if(!src){ main.textContent='\u2014'; sub.textContent=''; return; }
+  try{
+    const info=parseLine(stripFixture(src).text);
+    if(!info.math){ main.textContent='\u2014'; sub.textContent=''; return; }
+    const v=evaluate(preprocessMath(info.math), labelScope(), null);   /* labels from the active sheet work here */
+    const f=formatValue(v, info.format||null, doc.gFmt);
+    qcValue={src:src,v:v,main:f.main};
+    main.textContent=f.main; sub.textContent=f.sub||'';
+  }catch(e){ main.classList.add('err'); main.textContent=e.message; sub.textContent=''; }
+}
+function qcPush(){ if(!qcValue) return; qcEnsure();
+  doc.quick.hist.unshift({e:qcValue.src, v:qcValue.main});
+  doc.quick.hist=doc.quick.hist.slice(0,12); markDirty(); save(); qcRender(); }
+function qcRender(){ qcEnsure(); const box=$('#qc-hist'); if(!box) return;
+  if(!doc.quick.hist.length){ box.innerHTML='<div class="qc-empty">Press Enter to keep a result</div>'; return; }
+  box.innerHTML=doc.quick.hist.map((h,i)=>'<div class="qc-item" data-i="'+i+'" title="Click to reuse"><span class="qc-e">'+esc(h.e)+'</span><span class="qc-v">'+esc(h.v)+'</span></div>').join('');
+  [...box.querySelectorAll('.qc-item')].forEach(el=>el.addEventListener('click',()=>{ const h=doc.quick.hist[+el.dataset.i]; if(!h)return; const i=$('#qc-in'); i.value=h.e; qcEval(); i.focus(); }));
+}
+function qcInsert(){ if(!qcValue) return; const rs=active().rows; const last=rs[rs.length-1];
+  const nr=(last && !last.text.trim() && last.type==='calc') ? last : (rs.push(mkRow()), rs[rs.length-1]);
+  nr.text=qcValue.src; markDirty(); buildSheet(); computeAll(); record(true); focusRow(nr.id,'end'); flash('#qc-insert','Added'); }
+$('#qc-btn').addEventListener('click',toggleQC);
+$('#qc-close').addEventListener('click',closeQC);
+$('#qc-in').addEventListener('input',qcEval);
+$('#qc-in').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ e.preventDefault(); qcPush(); }
+  else if(e.key==='Escape'){ e.preventDefault(); closeQC(); }
+});
+$('#qc-copy').addEventListener('click',()=>{ if(!qcValue)return; try{ navigator.clipboard.writeText(qcValue.main); flash('#qc-copy','Copied'); }catch(e){} });
+$('#qc-clear').addEventListener('click',()=>{ qcEnsure(); doc.quick.hist=[]; $('#qc-in').value=''; markDirty(); save(); qcEval(); qcRender(); $('#qc-in').focus(); });
+$('#qc-insert').addEventListener('click',qcInsert);
+(function(){ const p=$('#quickcalc'), head=$('#qc-head');
+  head.addEventListener('pointerdown',e=>{ if(e.target.closest('button')) return; e.preventDefault();
+    const r=p.getBoundingClientRect(); const sx=e.clientX, sy=e.clientY, ox=r.left, oy=r.top; p.style.right='auto'; p.style.bottom='auto';
+    function mv(ev){ const x=Math.max(4,Math.min(window.innerWidth-80, ox+(ev.clientX-sx))), y=Math.max(4,Math.min(window.innerHeight-40, oy+(ev.clientY-sy)));
+      p.style.left=x+'px'; p.style.top=y+'px'; }
+    function up(){ document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up);
+      const rr=p.getBoundingClientRect(); qcEnsure(); doc.quick.pos={x:Math.round(rr.left),y:Math.round(rr.top)}; markDirty(); save(); }
+    document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up); });
+})();
 
 /* ---------- init ---------- */
 async function init(){
