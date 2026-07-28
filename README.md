@@ -31,11 +31,25 @@ INSTALL IT
   It launches full-screen with the Tally icon, and works offline after
   the first load.
 
+VERSION
+  The current build is shown in four places, so you always know which copy
+  you are looking at:
+    • the badge at the top-left of the title bar (e.g. "v1.1.0")
+    • the window / browser-tab title ("Tally 1.1.0")
+    • Settings -> ABOUT, which also says whether you are in the installed
+      app or a browser tab
+    • the "appVersion" field of any worksheet file you export
+
+  To cut a new release, bump the one line in index.html:
+      window.TALLY_VERSION='1.1.0';
+  Everything else reads from it, including the service-worker registration
+  (sw.js?v=...), so bumping it also retires the old cached build.
+
 UPDATES
   The service worker uses network-first for the page, so when you replace
   index.html on the host, users get the new version next time they're
-  online (and the last version keeps working offline). To force a hard
-  refresh of cached assets, bump  CACHE = 'tally-v1'  to 'tally-v2' in sw.js.
+  online (and the last version keeps working offline). Bumping
+  TALLY_VERSION (see above) forces cached assets to refresh too.
 
 NOTE
   tally-calculator.html (the single standalone file) is the same app and
