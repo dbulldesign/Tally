@@ -31,6 +31,15 @@ INSTALL IT
   It launches full-screen with the Tally icon, and works offline after
   the first load.
 
+TAGS, ZONES AND WHAT THE CUT PLAN COVERS
+  A tag can name a zone: @LA.North and @LA.South are both fixture type LA.
+  The TAGS list shows the type with its zones indented under it, so you can
+  filter to all of @LA or to one zone. Filtering, searching, the running
+  total, the section subtotals and the cut plan all describe the same set of
+  lines; when the cut plan is showing less than the whole worksheet it says so
+  at the top ("Planning 3 of 12 lines - filtered to @LA"). Pinning is separate:
+  it decides what the running total sums, not what gets planned or cut.
+
 FRACTIONS
   Results are shown in sixteenths of an inch by default, because that is
   what a tape measure has: 33 13/16" instead of 33.8125". Settings ->
@@ -46,14 +55,14 @@ FRACTIONS
 VERSION
   The current build is shown in four places, so you always know which copy
   you are looking at:
-    • the badge at the top-left of the title bar (e.g. "v1.7.0")
-    • the window / browser-tab title ("Tally 1.7.0")
+    • the badge at the top-left of the title bar (e.g. "v1.8.0")
+    • the window / browser-tab title ("Tally 1.8.0")
     • Settings -> ABOUT, which also says whether you are in the installed
       app or a browser tab
     • the "appVersion" field of any worksheet file you export
 
   To cut a new release, bump the one line in index.html:
-      window.TALLY_VERSION='1.7.0';
+      window.TALLY_VERSION='1.8.0';
   Everything else reads from it, including the service-worker registration
   (sw.js?v=...), so bumping it also retires the old cached build.
 
