@@ -73,23 +73,30 @@ FRACTIONS
 VERSION
   The current build is shown in four places, so you always know which copy
   you are looking at:
-    • the badge at the top-left of the title bar (e.g. "v1.9.0")
-    • the window / browser-tab title ("Tally 1.9.0")
+    • the badge at the top-left of the title bar (e.g. "v1.10.0")
+    • the window / browser-tab title ("Tally 1.10.0")
     • Settings -> ABOUT, which also says whether you are in the installed
       app or a browser tab
     • the "appVersion" field of any worksheet file you export
 
   To cut a new release, bump the one line in index.html:
-      window.TALLY_VERSION='1.9.0';
+      window.TALLY_VERSION='1.10.0';
   Everything else reads from it, including the service-worker registration
   (sw.js?v=...), so bumping it also retires the old cached build.
 
 PERFORMANCE ON LONG WORKSHEETS
-  Rows are not virtualised: every line in the open worksheet is in the DOM, so
-  typing gets slower as a sheet grows. Measured keystroke-to-visible-result
-  latency at 1280x900: ~17ms at 100 lines, ~35ms at 500, ~65ms at 1000.
-  Collapsing a section removes its lines from the DOM, so collapsing the zones
-  you are not working in is the fastest way to speed up a very long sheet.
+  The list narrows while you type and goes back to whole about a third of a
+  second after you stop, so typing costs the same on a long worksheet as on a
+  short one. Measured keystroke-to-visible-result latency at 1280x900: ~17ms at
+  100, 500 and 1000 lines, ~35ms at 2000 (it was 35ms / 65ms / 135ms before).
+
+  Everything except typing sees the whole list: printing, find-in-page,
+  scrolling and screenshots all happen while it is idle. Worksheets under 150
+  lines are never narrowed at all. Row heights are measured from the last full
+  render so the space standing in for the lines left out is exact rather than
+  estimated -- and if any height is missing, the list renders whole instead of
+  guessing. Scrolling ends a burst, and every section header stays in place
+  whatever the scroll position, so a section's sticky subtotal still works.
 
 MAINTENANCE
   index.html is hand-maintained -- there is no build step, and two of the
@@ -100,7 +107,9 @@ MAINTENANCE
       and fractional-inch formatting
     • the template framework (asset prefix 6e746952): memoised style parsing,
       property camelisation, and {{ path }} resolution -- worth ~40% of the
-      keystroke cost on a long worksheet
+      keystroke cost on a long worksheet -- and sc-for keys taken from each
+      item's own id instead of its position, without which windowing the row
+      list tears down and rebuilds every row, losing the focused input
 
   To change one, extract it from the manifest (the line beginning with a JSON
   object of asset uuids), edit, then gzip and base64 it back into the same
