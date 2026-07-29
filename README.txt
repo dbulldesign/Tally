@@ -34,14 +34,14 @@ INSTALL IT
 VERSION
   The current build is shown in four places, so you always know which copy
   you are looking at:
-    • the badge at the top-left of the title bar (e.g. "v1.4.0")
-    • the window / browser-tab title ("Tally 1.4.0")
+    • the badge at the top-left of the title bar (e.g. "v1.4.1")
+    • the window / browser-tab title ("Tally 1.4.1")
     • Settings -> ABOUT, which also says whether you are in the installed
       app or a browser tab
     • the "appVersion" field of any worksheet file you export
 
   To cut a new release, bump the one line in index.html:
-      window.TALLY_VERSION='1.4.0';
+      window.TALLY_VERSION='1.4.1';
   Everything else reads from it, including the service-worker registration
   (sw.js?v=...), so bumping it also retires the old cached build.
 
