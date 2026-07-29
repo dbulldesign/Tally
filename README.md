@@ -31,6 +31,24 @@ INSTALL IT
   It launches full-screen with the Tally icon, and works offline after
   the first load.
 
+UNDO
+  Cmd/Ctrl-Z undoes, Shift-Cmd/Ctrl-Z (or Ctrl-Y) redoes, up to 80 steps back.
+  Undo and Redo are also in the ... menu and in the right-click menu, and on a
+  phone they are the two arrows at the left of the bottom action row.
+
+  Everything that changes the worksheet is undoable -- typing in a line, the
+  quantity, pinning, sections and collapsing them, deleting a line or a whole
+  worksheet, renaming, the stock length, fixture and channel rows, and the
+  inch denominator. Typing collapses into one step per field, so undo goes
+  back to before you started typing there rather than one character.
+
+  Three things are deliberately outside it. Switching worksheets is navigation,
+  so it never uses up a step -- but undo will jump you back to the worksheet a
+  change happened in. Opening a .json file starts a new document and clears the
+  history. And if another window saves the file while you have it open, the
+  history is cleared when that version is adopted, because the steps no longer
+  describe the document you now have.
+
 TAGS, ZONES AND WHAT THE CUT PLAN COVERS
   A tag can name a zone: @LA.North and @LA.South are both fixture type LA.
   The TAGS list shows the type with its zones indented under it, so you can
@@ -55,14 +73,14 @@ FRACTIONS
 VERSION
   The current build is shown in four places, so you always know which copy
   you are looking at:
-    • the badge at the top-left of the title bar (e.g. "v1.8.0")
-    • the window / browser-tab title ("Tally 1.8.0")
+    • the badge at the top-left of the title bar (e.g. "v1.9.0")
+    • the window / browser-tab title ("Tally 1.9.0")
     • Settings -> ABOUT, which also says whether you are in the installed
       app or a browser tab
     • the "appVersion" field of any worksheet file you export
 
   To cut a new release, bump the one line in index.html:
-      window.TALLY_VERSION='1.8.0';
+      window.TALLY_VERSION='1.9.0';
   Everything else reads from it, including the service-worker registration
   (sw.js?v=...), so bumping it also retires the old cached build.
 
