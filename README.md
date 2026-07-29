@@ -97,14 +97,14 @@ FRACTIONS
 VERSION
   The current build is shown in four places, so you always know which copy
   you are looking at:
-    • the badge at the top-left of the title bar (e.g. "v1.11.0")
-    • the window / browser-tab title ("Tally 1.11.0")
+    • the badge at the top-left of the title bar (e.g. "v1.12.0")
+    • the window / browser-tab title ("Tally 1.12.0")
     • Settings -> ABOUT, which also says whether you are in the installed
       app or a browser tab
     • the "appVersion" field of any worksheet file you export
 
   To cut a new release, bump the one line in index.html:
-      window.TALLY_VERSION='1.11.0';
+      window.TALLY_VERSION='1.12.0';
   Everything else reads from it, including the service-worker registration
   (sw.js?v=...), so bumping it also retires the old cached build.
 
@@ -143,10 +143,22 @@ MAINTENANCE
   from the tool that originally produced this bundle would drop all of it.
 
 UPDATES
-  The service worker uses network-first for the page, so when you replace
-  index.html on the host, users get the new version next time they're
-  online (and the last version keeps working offline). Bumping
-  TALLY_VERSION (see above) forces cached assets to refresh too.
+  Tally checks the host for a newer build: once shortly after launch, whenever
+  the window comes back to the front after being away, and when the network
+  returns -- throttled to one check every five minutes. When it finds one it
+  says so in a bar across the top of the worksheet ("Tally 1.13.0 is available
+  -- this window is running 1.12.0") with a Reload now button. The worksheet is
+  saved before the reload either way.
+
+  The check is a HEAD on index.html compared against what the host said when the
+  page loaded, and only reads a body once something actually changed. It asks
+  with ?probe= so the service worker leaves it alone -- otherwise the check is
+  answered from the cache and compares the cache against itself.
+
+  Navigation is network-first with cache: 'no-store', so a plain reload also
+  picks up a new build rather than being answered from the browser's HTTP cache
+  (GitHub Pages serves index.html with max-age=600). Cache is the offline
+  fallback only. Bumping TALLY_VERSION is what the banner reports.
 
 NOTE
   tally-calculator.html (the single standalone file) is the same app and

@@ -17,7 +17,9 @@ var SHELL = 'index.html';
 self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(CACHE)
-      .then(function (c) { return c.add(SHELL); })
+      .then(function (c) {
+        return fetch(SHELL, { cache: 'reload' }).then(function (res) { return c.put(SHELL, res); });
+      })
       .catch(function () { /* never block install */ })
   );
 });
@@ -43,9 +45,15 @@ self.addEventListener('fetch', function (e) {
   var req = e.request;
   if (!req || req.method !== 'GET') return;
 
+  /* The app polls the host to see whether a newer build is deployed. That is a
+   * plain GET, so it used to be answered from this cache -- the check compared
+   * the cache against itself and never saw a release. Anything asking with
+   * ?probe= is the update check: leave it alone. */
+  if (req.url.indexOf('probe=') >= 0) return;
+
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req).then(function (res) {
+      fetch(req, { cache: 'no-store' }).then(function (res) {
         try {
           var copy = res.clone();
           caches.open(CACHE).then(function (c) { c.put(SHELL, copy); }).catch(function () {});
