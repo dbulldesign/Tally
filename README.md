@@ -31,17 +31,29 @@ INSTALL IT
   It launches full-screen with the Tally icon, and works offline after
   the first load.
 
+FRACTIONS
+  Results are shown in sixteenths of an inch by default, because that is
+  what a tape measure has: 33 13/16" instead of 33.8125". Settings ->
+  MEASURING -> "Round inches to" changes the denominator (decimal, 1/4,
+  1/8, 1/16, 1/32); the choice is saved with the worksheet and travels in
+  exported files, so the shop sees the same marks you do. Only inch
+  displays change -- feet, metres and centimetres stay decimal, and the
+  arithmetic underneath is always exact.
+
+  Fractions are also accepted as input: 8' 5 13/16", 40 3/8", and a bare
+  13/16" all parse as lengths.
+
 VERSION
   The current build is shown in four places, so you always know which copy
   you are looking at:
-    • the badge at the top-left of the title bar (e.g. "v1.5.0")
-    • the window / browser-tab title ("Tally 1.5.0")
+    • the badge at the top-left of the title bar (e.g. "v1.6.0")
+    • the window / browser-tab title ("Tally 1.6.0")
     • Settings -> ABOUT, which also says whether you are in the installed
       app or a browser tab
     • the "appVersion" field of any worksheet file you export
 
   To cut a new release, bump the one line in index.html:
-      window.TALLY_VERSION='1.5.0';
+      window.TALLY_VERSION='1.6.0';
   Everything else reads from it, including the service-worker registration
   (sw.js?v=...), so bumping it also retires the old cached build.
 
