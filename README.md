@@ -49,6 +49,30 @@ UNDO
   history is cleared when that version is adopted, because the steps no longer
   describe the document you now have.
 
+NAMES COMPLETE THEMSELVES
+  Type @ or # in an expression and Tally offers the names it already knows: the
+  tags and labels in this worksheet first, then your fixture and channel codes,
+  then names from earlier jobs. Up/Down moves, Enter or Tab takes the highlighted
+  one, Escape dismisses, and each row says where the name came from. A tag is a
+  name the shop agreed on -- @LB-717A is the same run every time it is typed, and
+  a typo makes a second one that quietly splits a cut plan.
+
+  Names from earlier jobs live in localStorage under `tally:recent`, separate
+  from the worksheet: they are this machine's memory, not the file's content, so
+  they never travel through undo, a merge, or an exported file.
+
+SECTIONS
+  A section header totals every calculation between it and the next header. If
+  only some of those lines are counted in the running total, the pinned part is
+  shown beside it in grey ("9' 0" - 8' 0" pinned"), so a section is never
+  reported as 0' 0" just because nothing under it is pinned.
+
+  Drag the grip at the left of a header to move a section -- the header and every
+  line under it move together. The grip is the only part of the header that
+  starts a drag, so on a touchscreen a drag anywhere else still scrolls. The same
+  move is on the header's right-click menu and on Alt+Up / Alt+Down while the
+  section's name field has focus, and it is one undo step.
+
 TAGS, ZONES AND WHAT THE CUT PLAN COVERS
   A tag can name a zone: @LA.North and @LA.South are both fixture type LA.
   The TAGS list shows the type with its zones indented under it, so you can
@@ -73,14 +97,14 @@ FRACTIONS
 VERSION
   The current build is shown in four places, so you always know which copy
   you are looking at:
-    • the badge at the top-left of the title bar (e.g. "v1.10.0")
-    • the window / browser-tab title ("Tally 1.10.0")
+    • the badge at the top-left of the title bar (e.g. "v1.11.0")
+    • the window / browser-tab title ("Tally 1.11.0")
     • Settings -> ABOUT, which also says whether you are in the installed
       app or a browser tab
     • the "appVersion" field of any worksheet file you export
 
   To cut a new release, bump the one line in index.html:
-      window.TALLY_VERSION='1.10.0';
+      window.TALLY_VERSION='1.11.0';
   Everything else reads from it, including the service-worker registration
   (sw.js?v=...), so bumping it also retires the old cached build.
 
