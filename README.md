@@ -46,16 +46,41 @@ FRACTIONS
 VERSION
   The current build is shown in four places, so you always know which copy
   you are looking at:
-    • the badge at the top-left of the title bar (e.g. "v1.6.0")
-    • the window / browser-tab title ("Tally 1.6.0")
+    • the badge at the top-left of the title bar (e.g. "v1.7.0")
+    • the window / browser-tab title ("Tally 1.7.0")
     • Settings -> ABOUT, which also says whether you are in the installed
       app or a browser tab
     • the "appVersion" field of any worksheet file you export
 
   To cut a new release, bump the one line in index.html:
-      window.TALLY_VERSION='1.6.0';
+      window.TALLY_VERSION='1.7.0';
   Everything else reads from it, including the service-worker registration
   (sw.js?v=...), so bumping it also retires the old cached build.
+
+PERFORMANCE ON LONG WORKSHEETS
+  Rows are not virtualised: every line in the open worksheet is in the DOM, so
+  typing gets slower as a sheet grows. Measured keystroke-to-visible-result
+  latency at 1280x900: ~17ms at 100 lines, ~35ms at 500, ~65ms at 1000.
+  Collapsing a section removes its lines from the DOM, so collapsing the zones
+  you are not working in is the fastest way to speed up a very long sheet.
+
+MAINTENANCE
+  index.html is hand-maintained -- there is no build step, and two of the
+  scripts embedded in it carry local patches that are invisible in the file
+  because the assets are base64(gzip) entries in a JSON manifest on one line.
+
+    • the expression engine (asset prefix cadd5ff2): quantity and piece caps,
+      and fractional-inch formatting
+    • the template framework (asset prefix 6e746952): memoised style parsing,
+      property camelisation, and {{ path }} resolution -- worth ~40% of the
+      keystroke cost on a long worksheet
+
+  To change one, extract it from the manifest (the line beginning with a JSON
+  object of asset uuids), edit, then gzip and base64 it back into the same
+  entry. The app template itself is the JSON-encoded string on the following
+  script line; when re-embedding it, escape "</" as "<\u002F" or the literal
+  </script> inside the string closes the element early. Re-exporting the app
+  from the tool that originally produced this bundle would drop all of it.
 
 UPDATES
   The service worker uses network-first for the page, so when you replace
